@@ -1,29 +1,80 @@
 <html>
   <script>
-  	var d = new Date();
-  	var time = d.getTime();
+    /* the last time a tab was selected or updated */
+  	var oldTime = new Date().getTime();
+    var time;
     /* list of domains visited */
     var domains = [];
-    /* React when a page is visited */
-    chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
+    /* total active time for each tab's current page */
+    var tabTimes = [];
+    /* store the latest page opened in each tab */
+    var tabURLs = [];
+
+    var activeTab;
+    chrome.tabs.getSelected(null,function(tab)
     {
-    	if(changeInfo.url) /* wait till the url is ready */
+        activeTab = tab.id;
+    });        
+    tabTimes[activeTab] = 1;
+
+  /* keep track of the active tab */
+  chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
+  {
+    if(tabTimes[activeTab])
+    { 
+      /* add the time this tab's page was active for... */
+      tabTimes[activeTab] = tabTimes[activeTab] + (new Date().getTime()-oldTime);
+    }
+    else
     {
-    	var spent = new Date().getTime()-time; /* end previous page's visit timer */
-    	time = new Date().getTime(); /* mark start of this page's visitation */
+      tabTimes[activeTab] = new Date().getTime()-oldTime;
+    }
+        var notification = webkitNotifications.createNotification(
+      'icon.png',  // icon url - can be relative
+      'TAB CHANGE',  // notification title
+      "Spent "+Math.round((new Date().getTime()-oldTime)/1000)+"s in previous tab...\
+      previous tab active total: "+Math.round(tabTimes[activeTab]/1000)+"s");
+      activeTab = tabId; /* mark this tab as the active one now */
+      oldTime = new Date().getTime(); /* save time of change */
+    
+      notification.show();
+      setTimeout(function(){
+      notification.cancel();
+      }, '2000');
+
+  });
+
+  chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
+  {
+    //TODO: link tabId with its url, and update it in the JSON object
+   
+  });
+
+  /* React when a page is visited */
+  chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
+  {
+  	if(changeInfo.url) /* wait till the url is ready */
+    {
+     // updateTime(tabURLS[activeTab],tabT)
+
+      tabURLs[tabId] = changeInfo.url; 
+      tabTimes[tabId] = 1; /* reset active time counter */
+
+    	var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
+    	oldTime = new Date().getTime(); /* mark start of this page's visitation */
 
     	var dom = getDomain(changeInfo.url);
       var domainMessage;
       if (domains[dom])
       {
-        domainMessage = "domain is same"+JSON.stringify(domains[dom]);           
+        domainMessage = "not a new domain";        
       }
       else
       {
         domains[dom] = newDomain(dom,changeInfo.url,tabId,time);
         domainMessage = "moved to new domain!";
       }
-      
+    
 
     	var notification = webkitNotifications.createNotification(
     	'icon.png',  // icon url - can be relative
@@ -31,17 +82,14 @@
     	"you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
     	\n\r domain: \""+dom+"\"\
     	\n\r "+ domainMessage // notification body text
-    );
-    // Then show the notification.
-		notification.show();
-		setTimeout(function(){
-		notification.cancel();
-		}, '8000');
-    	}
-
-		}
-
-    );
+      );
+      // Then show the notification.
+  		notification.show();
+  		setTimeout(function(){
+  		notification.cancel();
+  		}, '6000');
+    }
+  });
 
 	function getDomain(url)
 	{
@@ -66,13 +114,18 @@
   {
     var page =  {
                   "url": url ,
-                  "time": startTime,
+                  "time": startTime, /* total time the page was ACTIVE */
                   "payment": "false",
                   "downloads":"0",
                   "seen":"100",
                   "outgoing":"0"        
                 };
     return page;
+  }
+
+  function updateTime(url,time)
+  {
+    
   }
 
   </script>
