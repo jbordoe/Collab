@@ -1,0 +1,79 @@
+<html>
+  <script>
+  	var d = new Date();
+  	var time = d.getTime();
+    /* list of domains visited */
+    var domains = [];
+    /* React when a page is visited */
+    chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
+    {
+    	if(changeInfo.url) /* wait till the url is ready */
+    {
+    	var spent = new Date().getTime()-time; /* end previous page's visit timer */
+    	time = new Date().getTime(); /* mark start of this page's visitation */
+
+    	var dom = getDomain(changeInfo.url);
+      var domainMessage;
+      if (domains[dom])
+      {
+        domainMessage = "domain is same"+JSON.stringify(domains[dom]);           
+      }
+      else
+      {
+        domains[dom] = newDomain(dom,changeInfo.url,tabId,time);
+        domainMessage = "moved to new domain!";
+      }
+      
+
+    	var notification = webkitNotifications.createNotification(
+    	'icon.png',  // icon url - can be relative
+    	'IMPORTANT THING!',  // notification title
+    	"you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
+    	\n\r domain: \""+dom+"\"\
+    	\n\r "+ domainMessage // notification body text
+    );
+    // Then show the notification.
+		notification.show();
+		setTimeout(function(){
+		notification.cancel();
+		}, '8000');
+    	}
+
+		}
+
+    );
+
+	function getDomain(url)
+	{
+		return url.match(/:\/\/(.[^/]+)/)[1];
+	}
+
+  function newDomain(domain, url, tabId,startTime)
+  {
+    var thisPage = newPage(url, tabId, startTime);
+    var domain = {
+                    "name": domain,
+                    "start": startTime,
+                    "payment":"false",
+                    "downloads":"0", 
+                    "visited":"1",    /* # of pages visited in this domain */
+                    "pages": [thisPage], /* list of pages visited in this domain */
+                  };
+      return domain;
+  }
+
+  function newPage(url, tabId, startTime)
+  {
+    var page =  {
+                  "url": url ,
+                  "time": startTime,
+                  "payment": "false",
+                  "downloads":"0",
+                  "seen":"100",
+                  "outgoing":"0"        
+                };
+    return page;
+  }
+
+  </script>
+</html>
