@@ -1,6 +1,6 @@
 Chrome extension demo
 
-17/03/2011
+19/03/2011
 
 Use: 
 Save all this stuff to a folder
@@ -17,6 +17,14 @@ In the file dialog, navigate to the extension's folder and click OK
 If your extension is valid, its icon appears next to the address bar, 
 and information about the extension appears in the extensions page
 
+You should see a new little icon in the top right of chrome, saying 'hello'
+Click on this to display a little popup window. Place a search item in the textbox and click search,
+this should open up a new window with the google search results. In the backround, it activates the listeners
+which will gather data on pages visted.
+
+this more explicit definition makes things easier and helps to better 'encapsulate' the search session. 
+All subsequent activity in this window will be assumed to be relating to the initial search query
+It ignores additional pages from google for the moment
 
 Start browsing the web. Hopefully annoying little things will pop up on the lower right of your screen
 they contain details about the pages you visit. It's not well formatted, but it shows a few of the things
@@ -30,7 +38,14 @@ may be a good indicator of relevance/utility.
 If you move to a new page, a bigger message pops up. It should be able to tell whether this new page is in a previously
 unvisited domain
 
-Todo: 
-add more event listeners
-update JSON objects accordingly
-figure out what to do with the JSON :S
+Note that these messages won't appear if you move to a different window
+
+
+TODO:
+It shouldn't be too hard to allow the user to explicity end a search session in the same popup,
+otherwise it can be marked by the closing of the search window.
+ 
+After all this happens, the script should be able to finalize the stats, and output them to a file.
+this can be processed by a ranking program, which perhaps outputs some JSON, which the script will read
+next time a search occurs, and use it to inject results.
+
