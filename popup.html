@@ -1,14 +1,42 @@
 <html>
-<head title="chromeExtensionThing">
-	<style type="text/css">
-	body {width:200; height:300;}
-	</style>
-</head>
-<body>
-	<h1>Hello</h1>
-	<br>System.out.fuckoff
-	<br>etc..
-	<br>put things here
-	</iframe>
-</body>
+	<head title="chromeExtensionThing">
+
+		<style type="text/css">
+		body {width:400; height:300;
+		font-size:10pt; font-family:helvetica;} 
+		div{margin:7px; padding:8px; -webkit-border-radius:8px}
+		</style>
+	</head>
+	<body style="width:400px; ">
+		<div style="background-color:#FF2D2D; color:#fff; ">
+			<font size="6"><b>Collaborative Search</b></font>
+			<br>Kamil Olesiejuk and Jesse Bordoe
+		</div>
+
+		<div style="background-color:#2D2DFF; color:#fff;">
+			Enter a search item to begin
+			<br>
+			<form name="input" action="" method="get">
+				Search for: <input type="text" name="query" value=""/>
+				<input type="submit" value="Search" onclick="begin(this.form);" />
+			</form>
+		</div>
+
+		<div style="background-color:#1DCC1D; color:#020;">
+			Starting a search here will open a new window. Chrome will note pages you visit in
+			this new window and use them in the future, to help you and your friends find what they're looking for, faster
+		</div>
+		<div id="cancel" style="background-color:#CCCC1D; color:#220;">
+			<b>Click here if you're done with this search</b> <!--TODO: make it display current window's search --> 
+		</div>
+	</body>
+	<script type="text/javascript">
+
+		function begin(form)
+		{
+			var query = form.query.value;
+			chrome.extension.sendRequest({greeting: query}, function(response) {
+			});
+		}
+	</script>
 </html>

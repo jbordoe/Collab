@@ -1,5 +1,26 @@
 <html>
   <script>
+
+    var thisWindow;
+
+    chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
+
+      chrome.windows.create({"url":"http://google.com/search?q="+request.greeting},function(window){
+         
+
+        var notification = webkitNotifications.createNotification(
+        'icon.png',  // icon url - can be relative
+        'New Search...',  // notification title
+        "Beginning search for:"+request.greeting);
+      
+        notification.show();
+        setTimeout(function(){
+        notification.cancel();
+        }, '3200'); 
+        
+        go();       
+        });
+    });
     /* the last time a tab was selected or updated */
   	var oldTime = new Date().getTime();
     var time;
@@ -10,123 +31,126 @@
     /* store the latest page opened in each tab */
     var tabURLs = [];
 
-    var activeTab;
-    chrome.tabs.getSelected(null,function(tab)
+    function go()
     {
-        activeTab = tab.id;
-    });        
-    tabTimes[activeTab] = 1;
+      alert(thisWindow);
 
-  /* keep track of the active tab */
-  chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
-  {
-    if(tabTimes[activeTab])
-    { 
-      /* add the time this tab's page was active for... */
-      tabTimes[activeTab] = tabTimes[activeTab] + (new Date().getTime()-oldTime);
-    }
-    else
-    {
-      tabTimes[activeTab] = new Date().getTime()-oldTime;
-    }
-        var notification = webkitNotifications.createNotification(
-      'icon.png',  // icon url - can be relative
-      'TAB CHANGE',  // notification title
-      "Spent "+Math.round((new Date().getTime()-oldTime)/1000)+"s in previous tab...\
-      previous tab active total: "+Math.round(tabTimes[activeTab]/1000)+"s");
-      activeTab = tabId; /* mark this tab as the active one now */
-      oldTime = new Date().getTime(); /* save time of change */
-    
-      notification.show();
-      setTimeout(function(){
-      notification.cancel();
-      }, '2000');
-
-  });
-
-  chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
-  {
-    //TODO: link tabId with its url, and update it in the JSON object
-   
-  });
-
-  /* React when a page is visited */
-  chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
-  {
-  	if(changeInfo.url) /* wait till the url is ready */
-    {
-     // updateTime(tabURLS[activeTab],tabT)
-
-      tabURLs[tabId] = changeInfo.url; 
-      tabTimes[tabId] = 1; /* reset active time counter */
-
-    	var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
-    	oldTime = new Date().getTime(); /* mark start of this page's visitation */
-
-    	var dom = getDomain(changeInfo.url);
-      var domainMessage;
-      if (domains[dom])
+      var activeTab;
+      chrome.tabs.getSelected(null,function(tab)
       {
-        domainMessage = "not a new domain";        
-      }
-      else
+          activeTab = tab.id;
+      });        
+      tabTimes[activeTab] = 1;
+      /* keep track of the active tab */
+      chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
       {
-        domains[dom] = newDomain(dom,changeInfo.url,tabId,time);
-        domainMessage = "moved to new domain!";
-      }
-    
+        if(tabTimes[activeTab])
+        { 
+          /* add the time this tab's page was active for... */
+          tabTimes[activeTab] = tabTimes[activeTab] + (new Date().getTime()-oldTime);
+        }
+        else
+        {
+          tabTimes[activeTab] = new Date().getTime()-oldTime;
+        }
+          var notification = webkitNotifications.createNotification(
+          'icon.png',  // icon url - can be relative
+          'TAB CHANGE',  // notification title
+          "Spent "+Math.round((new Date().getTime()-oldTime)/1000)+"s in previous tab...\
+          previous tab active total: "+Math.round(tabTimes[activeTab]/1000)+"s");
+          activeTab = tabId; /* mark this tab as the active one now */
+          oldTime = new Date().getTime(); /* save time of change */
+        
+          notification.show();
+          setTimeout(function(){
+          notification.cancel();
+          }, '2000');
+      });
 
-    	var notification = webkitNotifications.createNotification(
-    	'icon.png',  // icon url - can be relative
-    	'IMPORTANT THING!',  // notification title
-    	"you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
-    	\n\r domain: \""+dom+"\"\
-    	\n\r "+ domainMessage // notification body text
-      );
-      // Then show the notification.
-  		notification.show();
-  		setTimeout(function(){
-  		notification.cancel();
-  		}, '6000');
+      chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
+      {
+        //TODO: link tabId with its url, and update it in the JSON object
+       
+      });
+
+      /* React when a page is visited */
+      chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
+      {
+      	if(changeInfo.url) /* wait till the url is ready */
+        {
+         // updateTime(tabURLS[activeTab],tabT)
+
+          tabURLs[tabId] = changeInfo.url; 
+          tabTimes[tabId] = 1; /* reset active time counter */
+
+        	var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
+        	oldTime = new Date().getTime(); /* mark start of this page's visitation */
+
+        	var dom = getDomain(changeInfo.url);
+          var domainMessage;
+          if (domains[dom])
+          {
+            domainMessage = "not a new domain";        
+          }
+          else
+          {
+            domains[dom] = newDomain(dom,changeInfo.url,tabId,time);
+            domainMessage = "moved to new domain!";
+          }
+        	var notification = webkitNotifications.createNotification(
+        	'icon.png',  // icon url - can be relative
+        	'IMPORTANT THING!',  // notification title
+        	"you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
+        	\n\r domain: \""+dom+"\"\
+        	\n\r "+ domainMessage // notification body text
+          );
+          // Then show the notification.
+      		notification.show();
+      		setTimeout(function(){
+      		notification.cancel();
+      		}, '6000');
+        }
+      });
     }
-  });
 
-	function getDomain(url)
-	{
-		return url.match(/:\/\/(.[^/]+)/)[1];
-	}
+  	function getDomain(url)
+  	{
+  		return url.match(/:\/\/(.[^/]+)/)[1];
+  	}
 
-  function newDomain(domain, url, tabId,startTime)
-  {
-    var thisPage = newPage(url, tabId, startTime);
-    var domain = {
-                    "name": domain,
-                    "start": startTime,
-                    "payment":"false",
-                    "downloads":"0", 
-                    "visited":"1",    /* # of pages visited in this domain */
-                    "pages": [thisPage], /* list of pages visited in this domain */
+    /* create JSON object for a domain */
+    function newDomain(domain, url, tabId,startTime)
+    {
+      var thisPage = newPage(url, tabId, startTime);
+      var domain = {
+                      "name": domain,
+                      "start": startTime,
+                      "payment":"false",
+                      "downloads":"0", 
+                      "visited":"1",    /* # of pages visited in this domain */
+                      "pages": [thisPage], /* list of pages visited in this domain */
+                    };
+        return domain;
+    }
+
+    /* create JSON object for a specific page */
+    function newPage(url, tabId, startTime)
+    {
+      var page =  {
+                    "url": url ,
+                    "time": startTime, /* total time the page was ACTIVE */
+                    "payment": "false",
+                    "downloads":"0",
+                    "seen":"100",
+                    "outgoing":"0"        
                   };
-      return domain;
-  }
+      return page;
+    }
 
-  function newPage(url, tabId, startTime)
-  {
-    var page =  {
-                  "url": url ,
-                  "time": startTime, /* total time the page was ACTIVE */
-                  "payment": "false",
-                  "downloads":"0",
-                  "seen":"100",
-                  "outgoing":"0"        
-                };
-    return page;
-  }
-
-  function updateTime(url,time)
-  {
-    
-  }
+    function updateTime(url,time)
+    {
+      
+    }
 
   </script>
 </html>

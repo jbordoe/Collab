@@ -8,6 +8,6 @@
     "popup": "popup.html"
   },
   "permissions": [
-    "notifications","tabs"
+    "notifications","tabs","history"
   ]
 }
