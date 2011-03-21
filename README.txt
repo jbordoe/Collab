@@ -44,6 +44,7 @@ Closing a tab will bring up a message detailing how long you've spent on that pa
 this value doesn't reset
 
 When you close a window, all the data regarding the search gets sent to PHP, which outputs this in a file
+testFile.txt is an example of this output
 
 TODO:
 Detecting payments, incoming/outgoing page count

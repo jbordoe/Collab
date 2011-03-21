@@ -1,13 +1,15 @@
 {
-  "name": "My First Extension",
+  "name": "Collaborative Search",
   "version": "1.0",
-  "description": "The first extension that I made.",
+  "description": "Information retrieval project. Collaborative search. Jesse Bordoe & Kamil Olesiejuk",
   "background_page": "background.html",
   "browser_action": {
     "default_icon": "icon.png",
     "popup": "popup.html"
   },
   "permissions": [
-    "notifications","tabs","history"
+    "notifications","tabs","history",
+    "http://localhost/Collab/",
+    "http://jbordoe.webfactional.com/Photo"
   ]
 }
