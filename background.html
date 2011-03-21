@@ -1,49 +1,77 @@
 <html>
   <script>
+    /** ID of designated search window */
+    var myWindow = 0;
+    var query = "";
+    var search = false;
 
-    var thisWindow;
-
+    /* deal with requests from the popup */
     chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
-
-      chrome.windows.create({"url":"http://google.com/search?q="+request.greeting},function(window){
-         
-
-        var notification = webkitNotifications.createNotification(
-        'icon.png',  // icon url - can be relative
-        'New Search...',  // notification title
-        "Beginning search for:"+request.greeting);
-      
-        notification.show();
-        setTimeout(function(){
-        notification.cancel();
-        }, '3200'); 
+      /* recieve new search query from popup */
+      if(request.rType=="init")
+      {
+        search = true;
+        query = request.greeting;
+        /* create a designated window for this search */
+        chrome.windows.create({"url":"http://google.com/search?q="+request.greeting},function(wind){   
+          myWindow = wind.id; /* get the ID of created search window */
+          var notification = webkitNotifications.createNotification(
+            'icon.png',  // icon url 
+            'New Search...',  // title
+            "Beginning search for:"+request.greeting);
         
-        go();       
+          notification.show();
+          setTimeout(function(){
+            notification.cancel();
+            }, '3200');           
+        
+          go(request.greeting);       
         });
+      }
+      /* send search term to popup for display*/
+      else if(request.rType=="query")
+      {
+        if(search){ 
+          sendResponse({q:query});
+        }else{
+          sendResponse({q:""});
+        }
+      }
+      /* mark search as over */
+      else if(request.rType=="finish")
+      {
+        finish();
+      }
+
     });
-    /* the last time a tab was selected or updated */
-  	var oldTime = new Date().getTime();
+    /** the last time a tab was selected or updated */
+    var oldTime = new Date().getTime();
     var time;
-    /* list of domains visited */
-    var domains = [];
-    /* total active time for each tab's current page */
+    /** list of domains visited */
+    var domains = {};
+    /** total active time for each tab's current page */
     var tabTimes = [];
-    /* store the latest page opened in each tab */
+    /** store the latest page opened in each tab */
     var tabURLs = [];
 
-    function go()
+    function go(query)
     {
-      alert(thisWindow);
-
       var activeTab;
       chrome.tabs.getSelected(null,function(tab)
       {
           activeTab = tab.id;
       });        
       tabTimes[activeTab] = 1;
-      /* keep track of the active tab */
+
+      /* keep track of the selected tab */
       chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
       {
+        /* ensure this tab is in our specified search window... */
+        if(selectInfo.windowId != myWindow)
+        {
+          return;
+        }
+
         if(tabTimes[activeTab])
         { 
           /* add the time this tab's page was active for... */
@@ -55,7 +83,7 @@
         }
           var notification = webkitNotifications.createNotification(
           'icon.png',  // icon url - can be relative
-          'TAB CHANGE',  // notification title
+          'Tab change',  // notification title
           "Spent "+Math.round((new Date().getTime()-oldTime)/1000)+"s in previous tab...\
           previous tab active total: "+Math.round(tabTimes[activeTab]/1000)+"s");
           activeTab = tabId; /* mark this tab as the active one now */
@@ -65,28 +93,61 @@
           setTimeout(function(){
           notification.cancel();
           }, '2000');
+
+          chrome.tabs.onSelectionChanged.removeListener(function(tabId,selectInfo){});
       });
 
       chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
       {
-        //TODO: link tabId with its url, and update it in the JSON object
+        if(!tabTimes[tabId])
+        {
+          return; /* page isn't in our window, ignore */
+        }
+        var spent = new Date().getTime()-oldTime; /* end page's visit timer */
+        updateTime(tabURLs[tabId],tabTimes[tabId]+spent); /* update JSON object */
+
+        var notification = webkitNotifications.createNotification(
+          'icon.png', 'Tab closed',  
+          "you've left: "+tabURLs[tabId]+", \n\r you've spent about "+
+          Math.round((domains[getDomain(tabURLs[tabId])].pages[tabURLs[tabId]].time+spent)/1000)+" seconds on this page in \
+          your '"+query+"'' search session"
+          );
+          // Then show the notification.
+          notification.show();
+          setTimeout(function(){
+          notification.cancel();
+          }, '6000');
+
        
       });
 
       /* React when a page is visited */
       chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab)
       {
-      	if(changeInfo.url) /* wait till the url is ready */
+        /* ensure this occurs within designated search window*/
+        if(tab.windowId != myWindow)
         {
-         // updateTime(tabURLS[activeTab],tabT)
-
+          return;
+        }
+        if(changeInfo.url) /* wait till the url is ready */
+        {
+          var dom = getDomain(changeInfo.url);
+          if(dom=="newtab")
+          {
+            return;
+          }
+          var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
+          if(tabURLs[activeTab])
+          {
+            updateTime(tabURLs[activeTab],tabTimes[activeTab]+spent);
+          }
           tabURLs[tabId] = changeInfo.url; 
           tabTimes[tabId] = 1; /* reset active time counter */
 
-        	var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
-        	oldTime = new Date().getTime(); /* mark start of this page's visitation */
+          
+          oldTime = new Date().getTime(); /* mark start of this page's visitation */
 
-        	var dom = getDomain(changeInfo.url);
+          
           var domainMessage;
           if (domains[dom])
           {
@@ -97,60 +158,120 @@
             domains[dom] = newDomain(dom,changeInfo.url,tabId,time);
             domainMessage = "moved to new domain!";
           }
-        	var notification = webkitNotifications.createNotification(
-        	'icon.png',  // icon url - can be relative
-        	'IMPORTANT THING!',  // notification title
-        	"you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
-        	\n\r domain: \""+dom+"\"\
-        	\n\r "+ domainMessage // notification body text
+          if(!domains[dom].pages[changeInfo.url])
+          {
+            domains[dom].pages[changeInfo.url]=newPage(changeInfo.url,tabId,0);
+          }
+
+          var notification = webkitNotifications.createNotification(
+          'icon.png', 'Page changed!',
+          "you moved to page: "+changeInfo.url+", \n\r you spent about "+Math.round(spent/1000)+" seconds on previous page.\
+          \n\r domain: \""+dom+"\"\
+          \n\r "+ domainMessage // notification body text
           );
           // Then show the notification.
-      		notification.show();
-      		setTimeout(function(){
-      		notification.cancel();
-      		}, '6000');
+          notification.show();
+          setTimeout(function(){
+          notification.cancel();
+          }, '6000');
         }
       });
     }
+    /* end of search */
+    chrome.windows.onRemoved.addListener(function( windowId) {
+      if(windowId == myWindow)
+      {
+        finish();
+      }
+    });
 
-  	function getDomain(url)
-  	{
-  		return url.match(/:\/\/(.[^/]+)/)[1];
-  	}
+    function getDomain(url)
+    {
+      return url.match(/:\/\/(.[^/]+)/)[1];
+    }
 
     /* create JSON object for a domain */
     function newDomain(domain, url, tabId,startTime)
     {
       var thisPage = newPage(url, tabId, startTime);
-      var domain = {
-                      "name": domain,
-                      "start": startTime,
-                      "payment":"false",
-                      "downloads":"0", 
-                      "visited":"1",    /* # of pages visited in this domain */
-                      "pages": [thisPage], /* list of pages visited in this domain */
-                    };
-        return domain;
+      var dom = {
+                "name": domain,
+                "start": startTime,
+                "payment":false,
+                "downloads":0, 
+                "visited":1,    /* # of pages visited in this domain */
+                "pages": {}, /* list of pages visited in this domain */                
+              };
+              dom.pages["url"]=thisPage;
+              //alert(dom.pages["url"].url);
+              return dom;
+
     }
 
     /* create JSON object for a specific page */
     function newPage(url, tabId, startTime)
     {
-      var page =  {
+      return {
                     "url": url ,
                     "time": startTime, /* total time the page was ACTIVE */
-                    "payment": "false",
-                    "downloads":"0",
-                    "seen":"100",
-                    "outgoing":"0"        
-                  };
-      return page;
+                    "payment": false,
+                    "downloads":0,
+                    "seen":100,   // percentage of page seen/amount scrolled
+                    "outgoing":0, 
+                    "incoming":0,   
+                    "visits":0    
+             };
     }
 
     function updateTime(url,time)
     {
+      var domain = getDomain(url);
+      domains[domain].pages[url].time+=time;
       
     }
+
+    function finish()
+    {
+      search = false;
+      //TODO: turn off those listeners
+      var notification = webkitNotifications.createNotification(
+      'icon.png', 'Search over', "Your search for "+query+" has ended.");
+      notification.show();
+      setTimeout(function(){
+        notification.cancel();
+      }, '3000');
+
+      /* send JSON objects to PHP */
+      var complete = {};
+      complete[query] = domains;
+      var data = JSON.stringify(complete);
+      //alert(data);
+      var url = "http://localhost/Collab/getJSON.php";
+      //var url = "http://jbordoe.webfactional.com/Photo/getThumbs.php";
+      var request = null;
+      request = new XMLHttpRequest();
+      request.open("POST",url,true);
+      
+      request.onreadystatechange = function(){
+        if (request.readyState == 4) {          
+          var notification = webkitNotifications.createNotification(
+          'icon.png', 'Data Sent', request.responseText);
+          notification.show();
+          setTimeout(function(){
+            notification.cancel();
+          }, '2000');
+        } else {
+            //..
+        }
+
+      }  
+      request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      request.send("data="+data);
+      //alert(data);
+      //request.send("data=" + encodeURIComponent(data).replace(/%20/g, '+'));    
+
+    }
+    
 
   </script>
 </html>

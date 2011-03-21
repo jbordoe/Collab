@@ -4,30 +4,31 @@
 		<style type="text/css">
 		body {width:400; height:300;
 		font-size:10pt; font-family:helvetica;} 
-		div{margin:7px; padding:8px; -webkit-border-radius:8px}
+		div{margin:7px; padding:8px; -webkit-border-radius:8px; border:1px;}
+		a{text-decoration:none; }
 		</style>
 	</head>
-	<body style="width:400px; ">
+	<body style="width:400px;" onload="getQuery();">
 		<div style="background-color:#FF2D2D; color:#fff; ">
 			<font size="6"><b>Collaborative Search</b></font>
 			<br>Kamil Olesiejuk and Jesse Bordoe
 		</div>
 
 		<div style="background-color:#2D2DFF; color:#fff;">
-			Enter a search item to begin
+			<font size="1"> Enter a search item to begin </font>
 			<br>
 			<form name="input" action="" method="get">
-				Search for: <input type="text" name="query" value=""/>
+				<b>Search for:</b> <input type="text" name="query" value=""/>
 				<input type="submit" value="Search" onclick="begin(this.form);" />
 			</form>
 		</div>
 
-		<div style="background-color:#1DCC1D; color:#020;">
+		<div style="background-color:#1dcc1d; color:#020;">
 			Starting a search here will open a new window. Chrome will note pages you visit in
 			this new window and use them in the future, to help you and your friends find what they're looking for, faster
 		</div>
-		<div id="cancel" style="background-color:#CCCC1D; color:#220;">
-			<b>Click here if you're done with this search</b> <!--TODO: make it display current window's search --> 
+		<div id="cancel" style="background-color:#fffb27; color:#220;">
+			<b>You can click here when you're done searching</b> <!--TODO: make it display current window's search --> 
 		</div>
 	</body>
 	<script type="text/javascript">
@@ -35,8 +36,31 @@
 		function begin(form)
 		{
 			var query = form.query.value;
-			chrome.extension.sendRequest({greeting: query}, function(response) {
+			chrome.extension.sendRequest({greeting: query, rType: "init"}, function(response) {
 			});
+
+		}
+
+		function getQuery()
+		{
+		  chrome.extension.sendRequest({rType: "query"}, function(response) {
+		  if(response.q != "")
+		  {
+			document.getElementById('cancel').innerHTML = "<b>Currently searching for\
+			<font color='#880000'><i>"+response.q+"</i></font>.\
+			<a href = '#' onclick = 'endSearch();'><br>Click here if you're done with this search</b></a>";
+		  }
+		  });
+		}
+
+		function endSearch()
+		{
+			//TODO: ask for confirmation
+			chrome.extension.sendRequest({rType: "finish"}), function(response) {
+			  document.getElementById('cancel').innerHTML = "<b>Search for\
+			  <font color='#880000'><i>"+response.q+"</i></font> ended.</b>";				
+			}
+
 		}
 	</script>
 </html>

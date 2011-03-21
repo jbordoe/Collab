@@ -1,6 +1,6 @@
 Chrome extension demo
 
-19/03/2011
+20/03/2011
 
 Use: 
 Save all this stuff to a folder
@@ -17,7 +17,7 @@ In the file dialog, navigate to the extension's folder and click OK
 If your extension is valid, its icon appears next to the address bar, 
 and information about the extension appears in the extensions page
 
-You should see a new little icon in the top right of chrome, saying 'hello'
+You should see a new little icon in the top right of chrome, a coloured swirly rainbow
 Click on this to display a little popup window. Place a search item in the textbox and click search,
 this should open up a new window with the google search results. In the backround, it activates the listeners
 which will gather data on pages visted.
@@ -40,12 +40,11 @@ unvisited domain
 
 Note that these messages won't appear if you move to a different window
 
+Closing a tab will bring up a message detailing how long you've spent on that page, in total. If you revisit the same page later,
+this value doesn't reset
+
+When you close a window, all the data regarding the search gets sent to PHP, which outputs this in a file
 
 TODO:
-It shouldn't be too hard to allow the user to explicity end a search session in the same popup,
-otherwise it can be marked by the closing of the search window.
- 
-After all this happens, the script should be able to finalize the stats, and output them to a file.
-this can be processed by a ranking program, which perhaps outputs some JSON, which the script will read
-next time a search occurs, and use it to inject results.
-
+Detecting payments, incoming/outgoing page count
+amount scrolled can be done, but it's tricky
