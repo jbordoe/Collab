@@ -4,6 +4,7 @@
     var myWindow = 0;
     var query = "";
     var search = false;
+    var page;
 
     /* deal with requests from the popup */
     chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
@@ -14,11 +15,12 @@
         query = request.greeting;
         /* create a designated window for this search */
         chrome.windows.create({"url":"http://google.com/search?q="+request.greeting},function(wind){   
+        
           myWindow = wind.id; /* get the ID of created search window */
           var notification = webkitNotifications.createNotification(
             'icon.png',  // icon url 
             'New Search...',  // title
-            "Beginning search for:"+request.greeting);
+            "Beginning search for '"+request.greeting+"'");
         
           notification.show();
           setTimeout(function(){
@@ -27,20 +29,16 @@
         
           go(request.greeting);       
         });
-      }
-      /* send search term to popup for display*/
-      else if(request.rType=="query")
-      {
-        if(search){ 
+      } else if(request.rType=="query") {
+        if(search){  /* send search term to popup for display*/
           sendResponse({q:query});
         }else{
           sendResponse({q:""});
         }
-      }
-      /* mark search as over */
-      else if(request.rType=="finish")
-      {
-        finish();
+      } else if(request.rType=="finish") {
+        finish(); /* mark search as over */
+      } else if(request.rType=="cancel") {
+        //TODO: cancel search
       }
 
     });
@@ -62,6 +60,7 @@
           activeTab = tab.id;
       });        
       tabTimes[activeTab] = 1;
+      inject(query);
 
       /* keep track of the selected tab */
       chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
@@ -81,6 +80,7 @@
         {
           tabTimes[activeTab] = new Date().getTime()-oldTime;
         }
+         inject(query);
           var notification = webkitNotifications.createNotification(
           'icon.png',  // icon url - can be relative
           'Tab change',  // notification title
@@ -93,8 +93,6 @@
           setTimeout(function(){
           notification.cancel();
           }, '2000');
-
-          chrome.tabs.onSelectionChanged.removeListener(function(tabId,selectInfo){});
       });
 
       chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
@@ -136,6 +134,8 @@
           {
             return;
           }
+          inject(query);
+          
           var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
           if(tabURLs[activeTab])
           {
@@ -196,13 +196,13 @@
       var thisPage = newPage(url, tabId, startTime);
       var dom = {
                 "name": domain,
-                "start": startTime,
+                "start": 0,
                 "payment":false,
                 "downloads":0, 
                 "visited":1,    /* # of pages visited in this domain */
                 "pages": {}, /* list of pages visited in this domain */                
               };
-              dom.pages["url"]=thisPage;
+              dom.pages[url]=thisPage;
               //alert(dom.pages["url"].url);
               return dom;
 
@@ -213,7 +213,7 @@
     {
       return {
                     "url": url ,
-                    "time": startTime, /* total time the page was ACTIVE */
+                    "time": 0, /* total time the page was ACTIVE */
                     "payment": false,
                     "downloads":0,
                     "seen":100,   // percentage of page seen/amount scrolled
@@ -230,6 +230,7 @@
       
     }
 
+    /* end a search session and output the data */
     function finish()
     {
       search = false;
@@ -242,8 +243,8 @@
       }, '3000');
 
       /* send JSON objects to PHP */
-      var complete = {};
-      complete[query] = domains;
+      var complete = {"query":query};
+      complete['session'] = domains;
       var data = JSON.stringify(complete);
       //alert(data);
       var url = "http://localhost/Collab/getJSON.php";
@@ -253,12 +254,13 @@
       request.open("POST",url,true);
       
       request.onreadystatechange = function(){
-        if (request.readyState == 4) {          
-          var notification = webkitNotifications.createNotification(
-          'icon.png', 'Data Sent', request.responseText);
-          notification.show();
+        if (request.readyState == 4) {  
+        //alert(request.responseText);        
+          var not = webkitNotifications.createNotification(
+          'icon.png', 'Data Sent', ''+request.responseText);
+          not.show();
           setTimeout(function(){
-            notification.cancel();
+            not.cancel();
           }, '2000');
         } else {
             //..
@@ -271,7 +273,33 @@
       //request.send("data=" + encodeURIComponent(data).replace(/%20/g, '+'));    
 
     }
+
+    //TODO: method for cancelling the search session 
     
+
+
+    function inject(query)
+    {
+      //TODO: check that active page is google search
+      //if so, extract query and inject any collab results
+      var tmp = "http:/localhost/Collab/q-"+query+".txt"; 
+      request = new XMLHttpRequest();
+      request.open("GET",tmp,true);      
+      request.onreadystatechange = function(){
+        if (request.readyState == 4) {  
+          page = request.responseText; 
+          //TODO - contact google for better headers/summary??
+          chrome.tabs.executeScript(null,
+      {code:"document.getElementById('topstuff').innerHTML = \
+      '<div style=\"-webkit-border-radius:8px; background-color:#ADB0FF; margin:7px; padding:8px; \">\
+      <h2>Your Collaborative Search Results for:"+query+"</h2>\
+      <br><b><a href=\""+page+"\">"+page+"</a></b></div>'"});
+           
+          
+        }
+      }
+      request.send();      
+    }
 
   </script>
 </html>

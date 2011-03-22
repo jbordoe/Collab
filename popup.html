@@ -4,17 +4,17 @@
 		<style type="text/css">
 		body {width:400; height:300;
 		font-size:10pt; font-family:helvetica;} 
-		div{margin:7px; padding:8px; -webkit-border-radius:8px; border:1px;}
+		div{margin:7px; padding:8px; -webkit-border-radius:8px; border:1px solid;}
 		a{text-decoration:none; }
 		</style>
 	</head>
 	<body style="width:400px;" onload="getQuery();">
-		<div style="background-color:#FF2D2D; color:#fff; ">
+		<div style="background-color:#FF2D2D; color:#fff; border:#900;">
 			<font size="6"><b>Collaborative Search</b></font>
 			<br>Kamil Olesiejuk and Jesse Bordoe
 		</div>
 
-		<div style="background-color:#2D2DFF; color:#fff;">
+		<div style="background-color:#2D2DFF; color:#fff; border:#009;">
 			<font size="1"> Enter a search item to begin </font>
 			<br>
 			<form name="input" action="" method="get">
@@ -23,15 +23,17 @@
 			</form>
 		</div>
 
-		<div style="background-color:#1dcc1d; color:#020;">
+		<div style="background-color:#1dcc1d; color:#020; border:#090;">
 			Starting a search here will open a new window. Chrome will note pages you visit in
 			this new window and use them in the future, to help you and your friends find what they're looking for, faster
 		</div>
-		<div id="cancel" style="background-color:#fffb27; color:#220;">
+		<div id="cancel" style="background-color:#fffb27; color:#220; border:#660;">
 			<b>You can click here when you're done searching</b> <!--TODO: make it display current window's search --> 
 		</div>
 	</body>
 	<script type="text/javascript">
+
+
 
 		function begin(form)
 		{
@@ -48,19 +50,33 @@
 		  {
 			document.getElementById('cancel').innerHTML = "<b>Currently searching for\
 			<font color='#880000'><i>"+response.q+"</i></font>.\
-			<a href = '#' onclick = 'endSearch();'><br>Click here if you're done with this search</b></a>";
+			<a href = '#' onclick = 'endSearch();'><br>Click here if you're done with this search</a>\
+			<br><a href = '#' onclick = 'cancel();'>Click here to cancel this search - no data will be saved</a></b>";
 		  }
 		  });
 		}
 
+		function cancel()
+		{	
+			//TODO: ask for confirmation
+			chrome.extension.sendRequest({rType: "cancel"}), function(response) {
+		    document.getElementById('cancel').innerHTML = "<b>Search for\
+			  <font color='#880000'><i>"+response.q+"</i></font> cancelled.</b>";				
+			}
+			
+		}
+
 		function endSearch()
 		{
-			//TODO: ask for confirmation
-			chrome.extension.sendRequest({rType: "finish"}), function(response) {
+			//ask for confirmation
+			var ok = confirm("Finished searching?")
+		    if (ok){
+		      chrome.extension.sendRequest({rType: "finish"}), function(response) {
 			  document.getElementById('cancel').innerHTML = "<b>Search for\
 			  <font color='#880000'><i>"+response.q+"</i></font> ended.</b>";				
+			  }
 			}
+		} 
 
-		}
 	</script>
 </html>

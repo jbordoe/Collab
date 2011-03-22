@@ -10,6 +10,8 @@
   "permissions": [
     "notifications","tabs","history",
     "http://localhost/Collab/",
-    "http://jbordoe.webfactional.com/Photo"
+    "http://jbordoe.webfactional.com/Photo",
+    "http://*/*"
+    
   ]
 }
