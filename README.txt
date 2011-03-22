@@ -46,6 +46,17 @@ this value doesn't reset
 When you close a window, all the data regarding the search gets sent to PHP, which outputs this in a file
 testFile.txt is an example of this output
 
+I've written a simple PERL script which reads thru a recorded session for a search term and outputs one page - the one with the longest active view time
+the next time you use the extension to search for this term, you'll see this page in a blue box at the top of your google results. 
+If the php outputs a .json file (<query>.json, e.g. java.json), run 'perl simple.pl <query>, to get q-<query>.txt output
+Obviously the ranking needs to be refined. (i'll probably change it to JSON so the extension's js can do some fancy things with it)
+
+jsp.json is an example of the session data output. 
+q-jsp contains the highest ranked page for the 'jsp' search session
+
+searching for jsp with the extension popup, you'll see that page highlighted at the top
+
 TODO:
 Detecting payments, incoming/outgoing page count
 amount scrolled can be done, but it's tricky
+refine ranking
