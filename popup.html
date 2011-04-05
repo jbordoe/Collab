@@ -2,34 +2,23 @@
 	<head title="chromeExtensionThing">
 
 		<style type="text/css">
-		body {width:400; height:300;
+		body {width:250; height:82;
 		font-size:10pt; font-family:helvetica;} 
 		div{margin:7px; padding:8px; -webkit-border-radius:8px; border:1px solid;}
 		a{text-decoration:none; }
 		</style>
 	</head>
-	<body style="width:400px;" onload="getQuery();">
-		<div style="background-color:#FF2D2D; color:#fff; border:#900;">
-			<font size="6"><b>Collaborative Search</b></font>
-			<br>Kamil Olesiejuk and Jesse Bordoe
+	<body style="width:250px;" onload="like();">
+
+
+		<div style="background-color:#2D2DFF; color:#fff; border:#009;" id="message">
+			<font size="2"> </font>
+			<!--TODO: a cancellation option -->
+		</div>
+		<div style="background-color:#1dcc1d; color:#020;" id="cancel">
+			<a href="#" onclick="rate();"> <b>Changed your mind?</b> </a>
 		</div>
 
-		<div style="background-color:#2D2DFF; color:#fff; border:#009;">
-			<font size="1"> Enter a search item to begin </font>
-			<br>
-			<form name="input" action="" method="get">
-				<b>Search for:</b> <input type="text" name="query" value=""/>
-				<input type="submit" value="Search" onclick="begin(this.form);" />
-			</form>
-		</div>
-
-		<div style="background-color:#1dcc1d; color:#020; border:#090;">
-			Starting a search here will open a new window. Chrome will note pages you visit in
-			this new window and use them in the future, to help you and your friends find what they're looking for, faster
-		</div>
-		<div id="cancel" style="background-color:#fffb27; color:#220; border:#660;">
-			<b>You can click here when you're done searching</b> <!--TODO: make it display current window's search --> 
-		</div>
 	</body>
 	<script type="text/javascript">
 
@@ -51,19 +40,45 @@
 			document.getElementById('cancel').innerHTML = "<b>Currently searching for\
 			<font color='#880000'><i>"+response.q+"</i></font>.\
 			<a href = '#' onclick = 'endSearch();'><br>Click here if you're done with this search</a>\
-			<br><a href = '#' onclick = 'cancel();'>Click here to cancel this search - no data will be saved</a></b>";
+			<br><a href = '#' onclick = 'rate();'>Click here to cancel this search - no data will be saved</a></b>";
 		  }
 		  });
 		}
 
-		function cancel()
+		function like()
 		{	
-			//TODO: ask for confirmation
-			chrome.extension.sendRequest({rType: "cancel"}), function(response) {
-		    document.getElementById('cancel').innerHTML = "<b>Search for\
-			  <font color='#880000'><i>"+response.q+"</i></font> cancelled.</b>";				
-			}
-			
+			chrome.extension.sendRequest({rType: "getRating"}, function(response) {
+				if(response.found=="0"){
+					document.getElementById('message').innerHTML = "Unknown search session";
+					document.getElementById('cancel').style.display = "none";
+					return;
+				}
+				document.getElementById('cancel').style.display = "block";
+			    if(response.r=="0")
+			    {
+			    	rate()
+			    }
+			    else
+			    {
+			    	document.getElementById('message').innerHTML = "<b>You like this page</b>";
+			    }			
+			});			
+		}
+
+		function rate()
+		{
+			chrome.extension.sendRequest({rType: "rate"}, function(response) {
+				if(response.found=="0"){
+					document.getElementById('message').innerHTML = "Unknown search session";
+					return;
+				}
+				document.getElementById('cancel').style.display = "block";
+				if(response.r=="1") {
+				  document.getElementById('message').innerHTML = "<b>You just 'liked' this page!</b>";
+				} else {
+					document.getElementById('message').innerHTML = "<b>You just 'un-liked' this page</b>";
+				}				 			
+			});
 		}
 
 		function endSearch()
