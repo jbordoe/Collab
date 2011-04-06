@@ -291,6 +291,21 @@
     function saveSession(sessions,s)
     {
       var session = sessions[s];
+      /* convert associative arrays to plain old arrays */
+      var domArr = [];
+      for(d in session.domains)
+      {
+        var dom = session.domains[d];
+        var pageArr = [];
+        for(p in dom.pages)
+        {
+          pageArr.push(dom.pages[p])
+        }
+        dom.pages = pageArr;
+        domArr.push(dom);
+      }
+      session.domains = domArr;
+      alert(JSON.stringify(session));
       session.time = new Date().getTime() -  session.time;
       var data = JSON.stringify(session);
       var url = "http://localhost:8888/guestbook?type=session&userid=kamil&data="+data;
