@@ -215,7 +215,7 @@
     {
       //var thisPage = newPage(url, tabId, startTime);
       var sess = {
-                "userId": "kamil",
+                "userId": "jesse",
                 "query": query,
                 "time": startTime,
                 "domains": {}, /* list of domains visited in this session */                
@@ -293,7 +293,7 @@
       var session = sessions[s];
       session.time = new Date().getTime() -  session.time;
       var data = JSON.stringify(session);
-      var url = "http://localhost:8888/guestbook?type=session&data="+data;
+      var url = "http://localhost:8888/guestbook?type=session&userid=kamil&data="+data;
       var request = null;
       request = new XMLHttpRequest();
       request.open("GET",url,true);
@@ -359,7 +359,7 @@
       if(dom == 'www.google.com' || dom == 'www.google.co.uk' ) { //TODO: more sophisticated matching 
         var q = url.match(/(\?|&)q=([^&]+)/)[2].replace(/\+/g,' ');
         //var tmp = "http:/localhost/Collab/q-"+q+".json"; 
-        var tmp = "http://localhost:8888/guestbook?type=query&q="+q;
+        var tmp = "http://localhost:8888/guestbook?type=query&userid=kamil&q="+q;
         request = new XMLHttpRequest();
         request.open("GET",tmp,true);      
         request.onreadystatechange = function(){
