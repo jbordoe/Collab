@@ -18,6 +18,8 @@
     var tabURLs = [];
     /** links current page in each tab to a query*/
     var tabQueries = [];
+    /** lists 'head' tab of each search session */
+    var qHeads = [];
     /** list */
     var visitQueries = [];
     /** list of transitions and whether we can correctly identify parent page (and therefore parent query) */
@@ -61,7 +63,10 @@
         if(changeInfo.url.match(/www\.google\.(.*)\/search/)) { //see if a search has been initiated...
           var myQ = changeInfo.url.match(/(\?|&)q=([^&]+)/)[2].replace(/\+/g,' '); //if so, extract query...
           tabQueries[tabId] = myQ; 
-          //activeTab = tabId;
+          if(qHeads[tabId] && qHeads[tabId] != myQ){  //new session overrides an older one, end older session
+            saveSession(sessions,qHeads[tabId])
+          }
+          qHeads[tabId] = myQ;  //mark this as 'head' of new search   
           inject(changeInfo.url);  
           trace = false;
 
@@ -75,18 +80,24 @@
 
         chrome.history.getVisits({"url": changeInfo.url}, function(results) {
            // alert(results[results.length-1].transition);
-          if(legalTrans[results[results.length-1].transition] && trace) {
-            tabQueries[tabId] = tabQueries[parents[tabId]];
-            //delete parents[tabId];
-            notify("new visit","under q: "+tabQueries[tabId],4000);
-          } else {
-            //..  
+           if(trace && results) {
+            if(legalTrans[results[results.length-1].transition]) {
+              tabQueries[tabId] = tabQueries[parents[tabId]];
+              //delete parents[tabId];
+             // notify("new visit","under q: "+tabQueries[tabId]+", t="+results[results.length-1].transition,4000);
+            } else {
+              if(qHeads[tabId]){  //new page replaces a session head, end that session
+                saveSession(sessions,qHeads[tabId])
+                delete qHeads[tabId];
+              }
+              delete tabQueries[tabId]; 
+            }
           }
           if(parents[tabId]){ delete parents[tabId];}
           //activeTab = tabId;
         });
         /* update view time */
-        var spent = new Date().getTime()-oldTime; /* end previous page's visit timer */
+        var spent = new Date().getTime()-oldTime; // end previous page's visit timer 
         if(tabURLs[activeTab])
         {
           updateTime(tabURLs[activeTab],tabTimes[activeTab]+spent);
@@ -185,18 +196,12 @@
       }
       var spent = new Date().getTime()-oldTime; /* end page's visit timer */
       updateTime(tabURLs[tabId],tabTimes[tabId]+spent); /* update JSON object */
+      if(qHeads[tabId])
+      {
+        saveSession(sessions,qHeads[tabId]);
+        delete qHeads[tabId];
+      }
 
-      // var notification = webkitNotifications.createNotification(
-      //   'icon.png', 'Tab closed',  
-      //   "you've left: "+tabURLs[tabId]+", \n\r you've spent about "+
-      //   Math.round((domains[getDomain(tabURLs[tabId])].pages[tabURLs[tabId]].time+spent)/1000)+" seconds on this page in \
-      //   your '"+query+"'' search session"
-      //   );
-      //   // Then show the notification.
-      //   notification.show();
-      //   setTimeout(function(){
-      //   notification.cancel();
-      //   }, '6000');
       addInfo(tabURLs[tabId]);
     });
 
@@ -210,6 +215,7 @@
     {
       //var thisPage = newPage(url, tabId, startTime);
       var sess = {
+                "userId": "kamil",
                 "query": query,
                 "time": startTime,
                 "domains": {}, /* list of domains visited in this session */                
@@ -277,13 +283,14 @@
       /* send JSON objects to PHP */
       for(s in sessions)
       {
-        saveSession(sessions[s]);
+        saveSession(sessions,s);
       }
     }
 
     /* send session object to server to be preocessed */
-    function saveSession(session)
+    function saveSession(sessions,s)
     {
+      var session = sessions[s];
       session.time = new Date().getTime() -  session.time;
       var data = JSON.stringify(session);
       var url = "http://localhost:8888/guestbook?type=session&data="+data;
@@ -294,6 +301,7 @@
       request.onreadystatechange = function(){
         if (request.readyState == 4) {  
           notify('Data Sent', ''+request.responseText,2000);
+          delete sessions[s]; 
         } else {
             //..
         }
