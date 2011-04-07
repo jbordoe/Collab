@@ -1,17 +1,14 @@
 <html>
   <script>
     var query = "";
-    var search = false;
     var page;
     var pageInfo;
     var info = {};
+
     /** list of search sessions, by query */
     var sessions = {};
     /** the last time a tab was selected or updated */
     var oldTime = new Date().getTime();
-    var time;
-    /** list of domains visited */
-    var domains = {};
     /** total active time for each tab's current page */
     var tabTimes = [];
     /** store the latest page opened in each tab */
@@ -49,9 +46,8 @@
 
         
     chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab) {
-     //alert(tabId+", "+activeTab+", "+parents[tabId]);
       if (!parents[tabId]) {
-        parents[tabId] = activeTab; /*immediately upon update, set parent as currently active tab*/
+        parents[tabId] = activeTab; //immediately upon update, set parent as currently active tab
       }
       var trace = false;      
       if(changeInfo.url) {
@@ -79,12 +75,9 @@
         }
 
         chrome.history.getVisits({"url": changeInfo.url}, function(results) {
-           // alert(results[results.length-1].transition);
-           if(trace && results) {
-            if(legalTrans[results[results.length-1].transition]) {
+           if(trace && results.length>0) {
+            if(legalTrans[results[results.length-1].transition]) { 
               tabQueries[tabId] = tabQueries[parents[tabId]];
-              //delete parents[tabId];
-             // notify("new visit","under q: "+tabQueries[tabId]+", t="+results[results.length-1].transition,4000);
             } else {
               if(qHeads[tabId]){  //new page replaces a session head, end that session
                 saveSession(sessions,qHeads[tabId])
@@ -107,15 +100,14 @@
         activeTab = tabId;
 
         oldTime = new Date().getTime(); /* mark start of this page's visitation */        
-                   // alert(tabQueries[tabId]); 
-        if(!trace ) /* don't add non-query pages */
+        if(!trace ) // don't add non-query pages
         {
           return;
         }
         var q = tabQueries[tabId];
 
         if (!sessions[q].domains[dom]) { /* create new domain object upon first visit */
-          sessions[q].domains[dom] = newDomain(dom,changeInfo.url,tabId,time);            
+          sessions[q].domains[dom] = newDomain(dom,changeInfo.url,tabId,1);            
         }
         if(!sessions[q].domains[dom].pages[changeInfo.url]) {
           //chrome.tabs.executeScript(null, { file: "getContent.js" }); 
@@ -207,7 +199,7 @@
 
     function getDomain(url)
     {
-      return url.match(/:\/\/(.[^/]+)/)[1];
+      return url.match(/:\/\/(.[^\/]+)/)[1];
     }
 
     /* create JSON object for a search session */
@@ -376,11 +368,10 @@
 
     function addInfo(url)
     {
-      var title = info[url].title;
+     // var title = info[url].title;
       var domain = getDomain(url);
-      if(domains[domain])
-      {
-        domains[domain].pages[url].title = title;
+      if(domains[domain]) {
+      //  domains[domain].pages[url].title = title;
       }
     }
 
