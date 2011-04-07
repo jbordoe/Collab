@@ -64,7 +64,6 @@
           }
           qHeads[tabId] = myQ;  //mark this as 'head' of new search   
           inject(changeInfo.url);  
-          trace = false;
 
           if(!sessions[myQ]) {
             sessions[myQ] = newSession(myQ,new Date().getTime());  //create new search session object
@@ -75,25 +74,29 @@
         }
 
         chrome.history.getVisits({"url": changeInfo.url}, function(results) {
-           if(trace && results.length>0) {
+          if(trace && results.length>0) {           
             if(legalTrans[results[results.length-1].transition]) { 
               tabQueries[tabId] = tabQueries[parents[tabId]];
-            } else {
-              if(qHeads[tabId]){  //new page replaces a session head, end that session
+            } else { // transition type means we cannot infer session
+              if(qHeads[tabId]) {  //new page replaces a session head, end that session
                 saveSession(sessions,qHeads[tabId])
-                delete qHeads[tabId];
+                delete qHeads[tabId];                
               }
+              trace = false;
               delete tabQueries[tabId]; 
+              alert(results[results.length-1].transition);
             }
-          }
+          } else if (trace) { alert("novisits?");   }
           if(parents[tabId]){ delete parents[tabId];}
-          //activeTab = tabId;
         });
+
+        var q = tabQueries[tabId];  //BUG: according to chrome's console, this value exists, but alerts say otherwise. wierd...
+        //alert(tabId+", "+q);
         /* update view time */
         var spent = new Date().getTime()-oldTime; // end previous page's visit timer 
         if(tabURLs[activeTab])
         {
-          updateTime(tabURLs[activeTab],tabTimes[activeTab]+spent);
+          updateTime(tabURLs[activeTab],tabTimes[activeTab]+spent,q);
         }
         tabURLs[tabId] = changeInfo.url; 
         tabTimes[tabId] = 1; /* reset active time counter */
@@ -103,8 +106,7 @@
         if(!trace ) // don't add non-query pages
         {
           return;
-        }
-        var q = tabQueries[tabId];
+        }        
 
         if (!sessions[q].domains[dom]) { /* create new domain object upon first visit */
           sessions[q].domains[dom] = newDomain(dom,changeInfo.url,tabId,1);            
@@ -115,12 +117,6 @@
         } else {
           sessions[q].domains[dom].pages[changeInfo.url].visits += 1; /* increment times this page has been visted */
         }
-
-      // chrome.history.getVisits({"url": changeInfo.url}, function(results) {
-      //   //TODO: ensure we select the right visit from results array (grr) - this is a bit of a pain
-      //   visitQueries[results[results.length-1].visitId] = visitQueries[results[results.length-1].referringVisitId];  //mark this visit under current query
-      //   notify("new visit","under query: "+visitQueries[results[results.length-1].visitId]+", id was: "+results[results.length-1].referringVisitId,2000);
-      // });
       }
     });
     
@@ -182,12 +178,12 @@
 
     chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) 
     {
-      if(!tabTimes[tabId])
+      if(!tabQueries[tabId])
       {
-        return; /* page isn't in our window, ignore */
+        return; /* page isn't pare of search session, ignore */
       }
       var spent = new Date().getTime()-oldTime; /* end page's visit timer */
-      updateTime(tabURLs[tabId],tabTimes[tabId]+spent); /* update JSON object */
+      updateTime(tabURLs[tabId],tabTimes[tabId]+spent,tabQueries[tabId]); /* update JSON object */
       if(qHeads[tabId])
       {
         saveSession(sessions,qHeads[tabId]);
@@ -253,12 +249,12 @@
       return (sessions[query].domains[dom].pages[url]);
     }
 
-    function updateTime(url,time)
+    function updateTime(url,time,query)
     {
       var domain = getDomain(url);
-      if(domains[domain])
+      if(sessions[query].domains[domain])
       {
-        domains[domain].pages[url].time+=time;
+        sessions[query].domains[domain].pages[url].time+=time;
       }
       
     }
@@ -370,9 +366,9 @@
     {
      // var title = info[url].title;
       var domain = getDomain(url);
-      if(domains[domain]) {
+     // if(domains[domain]) {
       //  domains[domain].pages[url].title = title;
-      }
+      //}
     }
 
     /* if we're searching on google, see if there is a search log for the query and bring up it's results on the page */
@@ -449,24 +445,6 @@
               break;}}"});
       }
       
-    }
-
-    function updateOut()
-    {
-      for (d in domains) { //iterate thru domains 
-        if (!domains.hasOwnProperty(d)) {
-          continue;
-        }
-        for (p in domains[d].pages) { //iterate thru pages in a domain
-          if (!domains[d].pages.hasOwnProperty(p)) {
-            continue;
-          }
-          //TODO: using HISTORY, get referrer and increment its outgoing link count
-          chrome.history.getVisits({"url": domains[d].pages[p].url}, function(results) {
-           // alert("yesh"+domains[d].pages[p].url);
-          });
-        }
-      }      
     }
 
     function notify(title, message, timeout)
