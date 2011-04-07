@@ -229,7 +229,7 @@
       //var thisPage = newPage(url, tabId, startTime);
       var dom = {
                 "name": domain,
-                "start": 0,
+                "time": 0,
                 "payment":false,
                 "visits":0,    /* # of pages visited in this domain */
                 "pages": {}, /* list of pages visited in this domain */                
@@ -305,12 +305,12 @@
         domArr.push(dom);
       }
       session.domains = domArr;
-      alert(JSON.stringify(session));
       session.time = new Date().getTime() -  session.time;
-      var data = JSON.stringify(session);
+      var data = encodeURIComponent(JSON.stringify(session));
       var url = "http://localhost:8888/guestbook?type=session&userid=kamil&data="+data;
       var request = null;
       request = new XMLHttpRequest();
+      //request.open("GET",encodeURIComponent(url),true);
       request.open("GET",url,true);
       
       request.onreadystatechange = function(){
@@ -323,6 +323,26 @@
       }  
       request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       request.send();      
+    }
+    //STRICTLY FOR DEBUGGING, DELETE ASAP
+    function testGet(str)
+    {
+      var data = encodeURIComponent(JSON.stringify(str));
+      var url = "http://localhost:8888/guestbook?type=session&userid=kamil&data="+data;
+      request = new XMLHttpRequest();
+      //request.open("GET",encodeURIComponent(url),true);
+      request.open("GET",url,true);
+      
+      request.onreadystatechange = function(){
+        if (request.readyState == 4) {  
+          notify('Data Sent', ''+request.responseText,2000);
+          
+        } else {
+            //..
+        }
+      }  
+      request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      request.send();        
     }
 
     function cancel(url, query)
