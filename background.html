@@ -400,7 +400,7 @@
         request.onreadystatechange = function(){
           if (request.readyState == 4 && request.status==200) { 
             //pages = eval(request.responseText).pages;            
-             var data = JSON.parse(request.responseText);
+             var data = JSON.parse(decodeURI(request.responseText));
             // alert(data.pages[1]);
 
           /* HIGHLIGHT OTHER GOOD RESULTS */
