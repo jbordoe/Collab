@@ -271,7 +271,7 @@
       var session = sessions[s];
       /* convert associative arrays to plain old arrays */
       var domArr = [];
-      if(! session.domains)
+      if(isEmpty(sessions[s].domains))
       {
          return;
       }
@@ -297,10 +297,9 @@
       }
       session.domains = domArr;
       session.time = new Date().getTime() -  session.time;
-      alert(JSON.stringify(session));
       var data = encodeURIComponent(JSON.stringify(session));
       
-      var url = "http://collaborativesearch.appspot.com/collabsearch?type=session&userid=kamil&data="+data;
+      var url = "http://collaborativesearch.appspot.com/collabsearch?type=session&data="+data;
       var request = null;
       request = new XMLHttpRequest();
       //request.open("GET",encodeURIComponent(url),true);
@@ -322,7 +321,7 @@
     function testGet(str)
     {
       var data = encodeURIComponent(JSON.stringify(str));
-      var url = "http://collaborativesearch.appspot.com/collabsearch?type=session&userid=kamil&data="+data;
+      var url = "http://collaborativesearch.appspot.com/collabsearch?type=session&data="+data;
       request = new XMLHttpRequest();
       //request.open("GET",encodeURIComponent(url),true);
       request.open("GET",url,true);
@@ -337,6 +336,11 @@
       }  
       request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       request.send();        
+    }
+
+    function isEmpty(ob){
+      for(var i in ob){ return false;}
+      return true;
     }
 
     function cancel(url, query)
@@ -403,7 +407,7 @@
       if(dom == 'www.google.com' || dom == 'www.google.co.uk' ) { //TODO: more sophisticated matching 
         var q = url.match(/(\?|&)q=([^&]+)/)[2].replace(/\+/g,' ');
         //var tmp = "http:/localhost/Collab/q-"+q+".json"; 
-        var tmp = "http://collaborativesearch.appspot.com/collabsearch?type=query&userid=kamil&q="+q;
+        var tmp = "http://collaborativesearch.appspot.com/collabsearch?type=query&q="+q;
         request = new XMLHttpRequest();
         request.open("GET",tmp,true);      
         request.onreadystatechange = function(){
