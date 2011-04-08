@@ -22,10 +22,12 @@
 	</body>
 	<script type="text/javascript">
 		
-		function checkLogin()
-		{
-			
-		}
+		chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
+			if(request.rType=="title") {
+				var pageTitle = document.title;
+				sendResponse({title:pageTitle});
+			}
+		});
 
 
 		function begin(form)

@@ -1,6 +1,7 @@
 <html>
   <script>
-    var query = "";
+  var q;
+    //var query = "";
     var page;
     var pageInfo;
     var info = {};
@@ -14,7 +15,7 @@
     /** store the latest page opened in each tab */
     var tabURLs = [];
     /** links current page in each tab to a query*/
-    var tabQueries = [];
+    var tabQueries = {};
     /** lists 'head' tab of each search session */
     var qHeads = [];
     /** list */
@@ -46,6 +47,7 @@
 
         
     chrome.tabs.onUpdated.addListener(function(tabId,changeInfo,tab) {
+      
       if (!parents[tabId]) {
         parents[tabId] = activeTab; //immediately upon update, set parent as currently active tab
       }
@@ -62,6 +64,7 @@
           if(qHeads[tabId] && qHeads[tabId] != myQ){  //new session overrides an older one, end older session
             saveSession(sessions,qHeads[tabId])
           }
+          q = myQ;
           qHeads[tabId] = myQ;  //mark this as 'head' of new search   
           inject(changeInfo.url);  
 
@@ -76,25 +79,27 @@
         chrome.history.getVisits({"url": changeInfo.url}, function(results) {
           if(trace && results.length>0) {           
             if(legalTrans[results[results.length-1].transition]) { 
-              tabQueries[tabId] = tabQueries[parents[tabId]];
+              q = tabQueries[parents[tabId]];
+              addOutgoing(q,tabURLs[parents[tabId]]);
+              tabQueries[tabId] = q;
             } else { // transition type means we cannot infer session
+              
               if(qHeads[tabId]) {  //new page replaces a session head, end that session
                 saveSession(sessions,qHeads[tabId])
                 delete qHeads[tabId];                
               }
               trace = false;
               delete tabQueries[tabId]; 
-              alert(results[results.length-1].transition);
+              //alert(results[results.length-1].transition);
             }
-          } else if (trace) { alert("novisits?");   }
-          if(parents[tabId]){ delete parents[tabId];}
+          } 
+          if(parents[tabId]){ 
+            delete parents[tabId];
+          }
         });
-
-        var q = tabQueries[tabId];  //BUG: according to chrome's console, this value exists, but alerts say otherwise. wierd...
-        //alert(tabId+", "+q);
         /* update view time */
         var spent = new Date().getTime()-oldTime; // end previous page's visit timer 
-        if(tabURLs[activeTab])
+        if(tabURLs[activeTab] && tabQueries[activeTab])
         {
           updateTime(tabURLs[activeTab],tabTimes[activeTab]+spent,q);
         }
@@ -103,21 +108,24 @@
         activeTab = tabId;
 
         oldTime = new Date().getTime(); /* mark start of this page's visitation */        
-        if(!trace ) // don't add non-query pages
-        {
-          return;
-        }        
+        if(trace){ 
+          if (!(sessions[q].domains[dom])) { // create new domain object upon first visit 
+            sessions[q].domains[dom] = newDomain(dom,changeInfo.url,tabId,1);            
+          }
+          if(!(sessions[q].domains[dom].pages[changeInfo.url])) {
+            //chrome.tabs.executeScript(null, { file: "getContent.js" }); 
 
-        if (!sessions[q].domains[dom]) { /* create new domain object upon first visit */
-          sessions[q].domains[dom] = newDomain(dom,changeInfo.url,tabId,1);            
+            sessions[q].domains[dom].pages[changeInfo.url]=newPage(changeInfo.url,tabId,0,tab.title); // create new page object 
+            getTitle(changeInfo.url,q);
+            
+          } else {
+            sessions[q].domains[dom].pages[changeInfo.url].visits+=1; // increment times this page has been visted            
+          }
+
         }
-        if(!sessions[q].domains[dom].pages[changeInfo.url]) {
-          //chrome.tabs.executeScript(null, { file: "getContent.js" }); 
-          sessions[q].domains[dom].pages[changeInfo.url]=newPage(changeInfo.url,tabId,0); /* create new page object */
-        } else {
-          sessions[q].domains[dom].pages[changeInfo.url].visits += 1; /* increment times this page has been visted */
-        }
+
       }
+       
     });
     
     /* deal with requests from the popup */
@@ -134,14 +142,14 @@
       } else if(request.rType=="getRating") {
           if(tabQueries[activeTab]){
             var rating = getRating(tabURLs[activeTab],tabQueries[activeTab]);
-            sendResponse({q:query,r:rating,found:1});
+            sendResponse({q:tabQueries[activeTab],r:rating,found:1});
           } else {
             sendResponse({q:0,r:0,found:0}); 
           }
       } else if(request.rType=="rate") {  //mark a page as liked or un-liked     
           if(tabQueries[activeTab]){
             var rating = rate(tabURLs[activeTab],tabQueries[activeTab]);
-            sendResponse({q:query,r:rating,found:1});
+            sendResponse({q:tabQueries[activeTab],r:rating,found:1});
           } else {
             sendResponse({q:0,r:0,found:0}); 
           }      
@@ -152,20 +160,15 @@
     /* keep track of the active tab */
     chrome.tabs.onSelectionChanged.addListener(function(tabId,selectInfo)
     {
+      q = tabQueries[tabId];
       if(tabTimes[activeTab]) { 
         /* add the time previous tab's page was active for... */
         tabTimes[activeTab] = tabTimes[activeTab] + (new Date().getTime()-oldTime);
       } else {
         tabTimes[activeTab] = new Date().getTime()-oldTime;
       }
-
-      // notify('Tab change', 
-      // "Spent "+Math.round((new Date().getTime()-oldTime)/1000)+"s in previous tab...\
-      // previous tab active total: "+Math.round(tabTimes[activeTab]/1000)+"s",
-      // 2000);
-
-      activeTab = tabId; /* mark this tab as the active one now */
-      oldTime = new Date().getTime(); /* save time of change */
+      activeTab = tabId; // mark this tab as the active one now 
+      oldTime = new Date().getTime(); // save time of change 
     });
 
     chrome.tabs.onCreated.addListener(function(tab) {
@@ -180,7 +183,7 @@
     {
       if(!tabQueries[tabId])
       {
-        return; /* page isn't pare of search session, ignore */
+        return; /* page isn't part of search session, ignore */
       }
       var spent = new Date().getTime()-oldTime; /* end page's visit timer */
       updateTime(tabURLs[tabId],tabTimes[tabId]+spent,tabQueries[tabId]); /* update JSON object */
@@ -201,35 +204,28 @@
     /* create JSON object for a search session */
     function newSession(query, startTime)
     {
-      //var thisPage = newPage(url, tabId, startTime);
-      var sess = {
-                "userId": "jesse",
-                "query": query,
-                "time": startTime,
-                "domains": {}, /* list of domains visited in this session */                
+      return {
+                "userId": "jesse" ,
+                "query": query ,
+                "time": startTime ,
+                "domains": {} /* list of domains visited in this session */                
               };
-              return sess;
     }
 
     /* create JSON object for a domain */
     function newDomain(domain, url, tabId,startTime)
     {
-      //var thisPage = newPage(url, tabId, startTime);
-      var dom = {
+      return {
                 "name": domain,
                 "time": 0,
                 "payment":false,
                 "visits":0,    /* # of pages visited in this domain */
-                "pages": {}, /* list of pages visited in this domain */                
+                "pages": {} /* list of pages visited in this domain */                
               };
-              //dom.pages[url]=thisPage;
-              //alert(dom.pages["url"].url);
-              return dom;
-
     }
 
     /* create JSON object for a specific page */
-    function newPage(url, tabId, startTime)
+    function newPage(url, tabId, startTime, title)
     {
       return {
                     "url": url ,
@@ -237,8 +233,9 @@
                     "payment": false,
                     "outgoing":0, 
                     "visits":1,  
-                    "title": url,
-                    "rated": 0   
+                    "title": "",
+                    "rated": 0,
+                    "start": new Date().getTime()
              };
     }
 
@@ -262,12 +259,6 @@
     /* end a search session and output the data */
     function finish()
     {
-      //updateOut();
-      //search = false;
-      //TODO: turn off those listeners - or maybe not?
-        
-        //ADD a notify for end of session here
-
       /* send JSON objects to PHP */
       for(s in sessions)
       {
@@ -281,15 +272,27 @@
       var session = sessions[s];
       /* convert associative arrays to plain old arrays */
       var domArr = [];
+      if(! session.domains)
+      {
+         return;
+      }
       for(d in session.domains)
       {
+        var domTime = 0;
         var dom = session.domains[d];
         var pageArr = [];
         for(p in dom.pages)
         {
-          pageArr.push(dom.pages[p])
+          if (dom.pages[p].start != 0){
+            dom.pages[p].time+=dom.pages[p].start;
+            dom.pages[p].start = 0;
+          }
+          domTime+=dom.pages[p].time;
+          pageArr.push(dom.pages[p]);         
         }
         dom.pages = pageArr;
+        dom.time = domTime;
+        dom.visits = pageArr.length
         domArr.push(dom);
       }
       session.domains = domArr;
@@ -362,13 +365,29 @@
       
     }
 
-    function addInfo(url)
+    function addOutgoing(query, url)
     {
-     // var title = info[url].title;
+      if(query && sessions[query].domains[domain])
+      {
+        var domain = getDomain(url);
+        sessions[query].domains[domain].pages[url].outgoing+=1;
+      }
+    }
+
+    function getTitle(url,q)
+    {
       var domain = getDomain(url);
-     // if(domains[domain]) {
-      //  domains[domain].pages[url].title = title;
-      //}
+     
+      chrome.extension.sendRequest({rType: "title"}, function(response) {
+        sessions[q].domains[domain].pages[url].title = response.title;
+        alert(response.title);
+      });
+    }
+
+    function setTitle(url,q,title)
+    {
+      var domain = getDomain(url);
+      sessions[q].domains[domain].pages[url].title = title;
     }
 
     /* if we're searching on google, see if there is a search log for the query and bring up it's results on the page */
@@ -390,8 +409,8 @@
              var data = JSON.parse(decodeURI(request.responseText));
             // alert(data.pages[1]);
 
-          /* HIGHLIGHT OTHER GOOD RESULTS */
-          highlight(data.pages);
+            /* HIGHLIGHT OTHER GOOD RESULTS */
+            highlight(data.pages);
 
                         //TODO - contact google for better headers/summary??
                         //TODO - remove from rest of page?
