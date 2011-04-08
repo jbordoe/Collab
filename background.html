@@ -193,7 +193,6 @@
         delete qHeads[tabId];
       }
 
-      addInfo(tabURLs[tabId]);
     });
 
     function getDomain(url)
@@ -233,7 +232,7 @@
                     "payment": false,
                     "outgoing":0, 
                     "visits":1,  
-                    "title": "",
+                    "title": title,
                     "rated": 0,
                     "start": new Date().getTime()
              };
@@ -284,9 +283,10 @@
         for(p in dom.pages)
         {
           if (dom.pages[p].start != 0){
-            dom.pages[p].time+=dom.pages[p].start;
+            dom.pages[p].time+=new Date().getTime() - dom.pages[p].start;
             dom.pages[p].start = 0;
           }
+          delete dom.pages[p].start;
           domTime+=dom.pages[p].time;
           pageArr.push(dom.pages[p]);         
         }
@@ -297,7 +297,9 @@
       }
       session.domains = domArr;
       session.time = new Date().getTime() -  session.time;
+      alert(JSON.stringify(session));
       var data = encodeURIComponent(JSON.stringify(session));
+      
       var url = "http://collaborativesearch.appspot.com/collabsearch?type=session&userid=kamil&data="+data;
       var request = null;
       request = new XMLHttpRequest();
@@ -306,6 +308,7 @@
       
       request.onreadystatechange = function(){
         if (request.readyState == 4) {  
+          alert(request.responseText)
           notify('Data Sent', ''+request.responseText,2000);
           delete sessions[s]; 
         } else {
